@@ -1,9 +1,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/sysinfo.h>
+#include <unistd.h>
 
 int p = 0; // imprimir matriz resultado
 
@@ -14,6 +17,7 @@ int **genMtx(int n) ;//generar matriz
 void printMtx(int **matriz, int n); //imprimir matriz
 void freeMemory(int **matriz, int n); //liberar memoria
 int **mulMtx(int **matrizA, int **matrizB, int n); 
+
 //------------------------------------MAIN---------------------------------------
 int main(int args, char *argsv[]) {
 
@@ -21,11 +25,20 @@ int main(int args, char *argsv[]) {
         return 0;
     }
     int n;
-    n = atoi(argsv[1]);
-    int **matrizA = genMtx(n);
+    n = atoi(argsv[1]);                //Convierte el numero ya validado a entero 
+    int ncores = get_nprocs() / 2; //Numero de nucleos
+
+    int **matrizA = genMtx(n);           
     int **matrizB = genMtx(n);
+    
     int **result = NULL;     
 
+
+    for(int i = 0;  i < ncores; i++){
+        fork();
+        
+    }
+    
     //TODO:
     /*
         1. Multiplicar matrices
@@ -34,6 +47,7 @@ int main(int args, char *argsv[]) {
         3. implementar funcion que registre los tiempos en un csv
         4. desarrollar shell script para testing de multiplicacion de matrices
     */
+   
     result = mulMtx(matrizA,matrizB,n);
     if(p == 1){
         printMtx(result,n);        
