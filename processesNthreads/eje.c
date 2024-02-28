@@ -1,60 +1,131 @@
 #include <stdio.h>
-#include <sys/sysinfo.h>
-#include <sys/types.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <time.h>
 
-void print(int **matrix, int pid){
-    
-    for(int i = 0; i < 4; i++){
-        for(int j = 0; j < 4; j++){
-            printf("%i  ",*(*(matrix + i) + j));
+#define MAX_SIZE 1000 // Tamaño máximo de la matriz
+
+// Estructura para pasar los datos necesarios a los hijos
+typedef struct {
+    int **matriz1;
+    int **matriz2;
+    int **resultado;
+    int size;
+} Data;
+
+// Función para generar una matriz cuadrada de tamaño n con números aleatorios del 1 al 10
+int **generarMatriz(int n) {
+    int **matriz = (int **)malloc(n * sizeof(int *));
+    for (int i = 0; i < n; i++) {
+        matriz[i] = (int *)malloc(n * sizeof(int));
+        for (int j = 0; j < n; j++) {
+            matriz[i][j] = rand() % 10 + 1; // Números aleatorios del 1 al 10
+        }
+    }
+    return matriz;
+}
+
+// Función para multiplicar una porción de la matriz
+void multiplicarPorcion(Data *data, int inicio, int fin) {
+    int n = data->size;
+    for (int i = inicio; i < fin; i++) {
+        for (int j = 0; j < n; j++) {
+            data->resultado[i][j] = 0;
+            for (int k = 0; k < n; k++) {
+                data->resultado[i][j] += data->matriz1[i][k] * data->matriz2[k][j];
+            }
+        }
+    }
+}
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        printf("Uso: %s <tamaño de matriz>\n", argv[0]);
+        return 1;
+    }
+
+    int size = atoi(argv[1]);
+    if (size <= 0 || size > MAX_SIZE) {
+        printf("Tamaño de matriz inválido.\n");
+        return 1;
+    }
+
+    // Generar las matrices en el proceso padre
+    int **matriz1 = generarMatriz(size);
+    int **matriz2 = generarMatriz(size);
+
+    // Crear la memoria compartida para el resultado
+    int shm_id = shmget(IPC_PRIVATE, size * sizeof(int *) + size * size * sizeof(int), IPC_CREAT | 0666);
+    if (shm_id < 0) {
+        perror("Error en shmget");
+        return 1;
+    }
+    int **resultado = (int **)shmat(shm_id, NULL, 0);
+    if (resultado == (int **)-1) {
+        perror("Error en shmat");
+        return 1;
+    }
+    for (int i = 0; i < size; i++) {
+        resultado[i] = (int *)(resultado + size) + i * size;
+    }
+
+    // Inicializar la estructura de datos para compartir con los hijos
+    Data data;
+    data.matriz1 = matriz1;
+    data.matriz2 = matriz2;
+    data.resultado = resultado;
+    data.size = size;
+
+    clock_t start_time = clock(); // Tiempo de inicio
+
+    // Crear procesos hijos
+    int num_hijos = size;
+    pid_t pid;
+    for (int i = 0; i < num_hijos; i++) {
+        pid = fork();
+        if (pid == 0) { // Proceso hijo
+            multiplicarPorcion(&data, i, i + 1);
+            exit(0);
+        } else if (pid < 0) {
+            perror("Error en fork");
+            return 1;
+        }
+    }
+
+    // Esperar a que todos los procesos hijos terminen
+    for (int i = 0; i < num_hijos; i++) {
+        wait(NULL);
+    }
+
+    clock_t end_time = clock(); // Tiempo de fin
+    double total_time = (double)(end_time - start_time) / CLOCKS_PER_SEC; // Tiempo total en segundos
+
+    printf("Tiempo de ejecución en el proceso padre: %.6f segundos\n", total_time);
+
+    // Imprimir el resultado en el proceso padre
+    /*printf("\nResultado de la multiplicación:\n");
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            printf("%d\t", resultado[i][j]);
         }
         printf("\n");
+    }*/
+
+    // Liberar la memoria compartida
+    shmdt(resultado);
+    shmctl(shm_id, IPC_RMID, NULL);
+
+    // Liberar memoria de las matrices
+    for (int i = 0; i < size; i++) {
+        free(matriz1[i]);
+        free(matriz2[i]);
     }
-  
-}
-
-void countFrom(int n){
-    for(int i = n; i < 10; i++){
-        printf("%d",i++);
-    }
-}
-
-
-int main(int argc, char *argv[])
-{
-
-    int **matrix = (int **)malloc(sizeof(int *)*4);
-    for(int i = 0; i < 4; i++){
-        matrix[i] = (int *)malloc(sizeof(int)*4);
-        for(int j = 0; j < 4; j++){
-            matrix[i][j] = j + i;
-        }
-    }
-
-
-    pid_t pid = fork();
-    int count = 1;
-    for(int i = 0; i < 4; i++){
-        if(pid > 0){
-            
-            printf("Instancia fork %d\n",i);
-            pid = fork();
-            count++;
-
-        }else printf("Este es el proceso hijo %i\n",i);
-        
-    }
-
-    if(pid == 0){
-        exit(1);
-    }
-    
-    printf("%d\n",count);
-
+    free(matriz1);
+    free(matriz2);
 
     return 0;
 }
-
