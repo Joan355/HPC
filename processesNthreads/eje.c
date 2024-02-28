@@ -7,8 +7,6 @@
 #include <sys/shm.h>
 #include <time.h>
 
-#define MAX_SIZE 1000 // Tamaño máximo de la matriz
-
 // Estructura para pasar los datos necesarios a los hijos
 typedef struct {
     int **matriz1;
@@ -19,6 +17,7 @@ typedef struct {
 
 // Función para generar una matriz cuadrada de tamaño n con números aleatorios del 1 al 10
 int **generarMatriz(int n) {
+
     int **matriz = (int **)malloc(n * sizeof(int *));
     for (int i = 0; i < n; i++) {
         matriz[i] = (int *)malloc(n * sizeof(int));
@@ -43,13 +42,14 @@ void multiplicarPorcion(Data *data, int inicio, int fin) {
 }
 
 int main(int argc, char *argv[]) {
+    srand(time(NULL));
     if (argc != 2) {
         printf("Uso: %s <tamaño de matriz>\n", argv[0]);
         return 1;
     }
 
     int size = atoi(argv[1]);
-    if (size <= 0 || size > MAX_SIZE) {
+    if (size <= 1) {
         printf("Tamaño de matriz inválido.\n");
         return 1;
     }
@@ -107,14 +107,30 @@ int main(int argc, char *argv[]) {
     printf("Tiempo de ejecución en el proceso padre: %.6f segundos\n", total_time);
 
     // Imprimir el resultado en el proceso padre
-    /*printf("\nResultado de la multiplicación:\n");
+    /*
+    printf("\nResultado de la multiplicación:\n");
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            printf("%d\t", matriz1[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            printf("%d\t", matriz2[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < size; j++) {
             printf("%d\t", resultado[i][j]);
         }
         printf("\n");
-    }*/
-
+    }
+    printf("\n");
+    */
     // Liberar la memoria compartida
     shmdt(resultado);
     shmctl(shm_id, IPC_RMID, NULL);
