@@ -6,6 +6,10 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <time.h>
+#include <math.h>
+//#define P  sysconf(_SC_NPROCESSORS_ONLN) / 2
+#define P 6
+
 
 // Estructura para pasar los datos necesarios a los hijos
 typedef struct {
@@ -30,6 +34,7 @@ int **generarMatriz(int n) {
 
 // Función para multiplicar una porción de la matriz
 void multiplicarPorcion(Data *data, int inicio, int fin) {
+    
     int n = data->size;
     for (int i = inicio; i < fin; i++) {
         for (int j = 0; j < n; j++) {
@@ -83,21 +88,31 @@ int main(int argc, char *argv[]) {
     clock_t start_time = clock(); // Tiempo de inicio
 
     // Crear procesos hijos
-    int num_hijos = size;
-    pid_t pid;
-    for (int i = 0; i < num_hijos; i++) {
-        pid = fork();
-        if (pid == 0) { // Proceso hijo
-            multiplicarPorcion(&data, i, i + 1);
-            exit(0);
-        } else if (pid < 0) {
-            perror("Error en fork");
+    
+    int p_r = (int)floor(size / P);
+    int step = p_r == 0 ? 1 : p_r;
+    int r_step = size % P;
+    int lim = (p_r == 0) ? r_step : P;
+    
+
+    pid_t pid = 1;
+    for (int i = 0; i < P; i++) {
+
+        if(pid){
+            pid = fork();
+        }else if(pid < 0){
             return 1;
         }
+
+        if(pid == 0){
+            multiplicarPorcion(&data, i*step, ((P - 1) == i) ? (i*step + r_step + step): (i*step + step));
+            exit(0);
+        }
+
     }
 
     // Esperar a que todos los procesos hijos terminen
-    for (int i = 0; i < num_hijos; i++) {
+    for (int i = 0; i < P; i++) {
         wait(NULL);
     }
 
@@ -122,6 +137,7 @@ int main(int argc, char *argv[]) {
         }
         printf("\n");
     }
+    */
     printf("\n");
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < size; j++) {
@@ -129,8 +145,10 @@ int main(int argc, char *argv[]) {
         }
         printf("\n");
     }
+    
     printf("\n");
-    */
+    
+    
     // Liberar la memoria compartida
     shmdt(resultado);
     shmctl(shm_id, IPC_RMID, NULL);
