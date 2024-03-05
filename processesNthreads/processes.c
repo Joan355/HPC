@@ -17,6 +17,7 @@ typedef struct {
     int **matriz2;
     int **resultado;
     int size;
+    double *times;
 } Data;
 
 // Función para generar una matriz cuadrada de tamaño n con números aleatorios del 1 al 10
@@ -46,6 +47,16 @@ void multiplicarPorcion(Data *data, int inicio, int fin) {
     }
 }
 
+double getMax(double *array){
+    double max = array[0];
+    for(int i = 1; i < P; i++){
+        if(max < array[i]){
+            max = array[i];
+        }
+    }
+    return max;
+}
+
 int main(int argc, char *argv[]) {
     srand(time(NULL));
     if (argc != 2) {
@@ -65,12 +76,16 @@ int main(int argc, char *argv[]) {
 
     // Crear la memoria compartida para el resultado
     int shm_id = shmget(IPC_PRIVATE, size * sizeof(int *) + size * size * sizeof(int), IPC_CREAT | 0666);
-    if (shm_id < 0) {
+    int shm_idt = shmget(IPC_PRIVATE, P * sizeof(double), IPC_CREAT | 0666);
+    if (shm_id < 0 || shm_idt < 0) {
         perror("Error en shmget");
         return 1;
     }
+
     int **resultado = (int **)shmat(shm_id, NULL, 0);
-    if (resultado == (int **)-1) {
+    double *time = (double *)shmat(shm_idt, NULL, 0);
+
+    if (resultado == (int **)-1 || time == (double *)-1){
         perror("Error en shmat");
         return 1;
     }
@@ -84,7 +99,7 @@ int main(int argc, char *argv[]) {
     data.matriz2 = matriz2;
     data.resultado = resultado;
     data.size = size;
-
+    data.times = time;
     clock_t start_time = clock(); // Tiempo de inicio
 
     // Crear procesos hijos
@@ -105,7 +120,11 @@ int main(int argc, char *argv[]) {
         }
 
         if(pid == 0){
+            clock_t child_ts = clock();
             multiplicarPorcion(&data, i*step, ((P - 1) == i) ? (i*step + r_step + step): (i*step + step));
+            clock_t child_fs = clock();
+            double tt = (double)(child_fs - child_ts) / CLOCKS_PER_SEC;
+            data.times[i] = tt;
             exit(0);
         }
 
@@ -117,41 +136,16 @@ int main(int argc, char *argv[]) {
     }
 
     clock_t end_time = clock(); // Tiempo de fin
-    double total_time = (double)(end_time - start_time) / CLOCKS_PER_SEC; // Tiempo total en segundos
+    double total_p_time = (double)(end_time - start_time) / CLOCKS_PER_SEC; // Tiempo total en segundos
+    double max_child_p_time = getMax(data.times);
+    double total_exec_time = total_p_time + max_child_p_time;
+    printf("%0.6f\n",total_exec_time);
 
-    printf("Tiempo de ejecución en el proceso padre: %.6f segundos\n", total_time);
-
-    // Imprimir el resultado en el proceso padre
-    /*
-    printf("\nResultado de la multiplicación:\n");
-    for (int i = 0; i < size; i++) {
-        for (int j = 0; j < size; j++) {
-            printf("%d\t", matriz1[i][j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
-    for (int i = 0; i < size; i++) {
-        for (int j = 0; j < size; j++) {
-            printf("%d\t", matriz2[i][j]);
-        }
-        printf("\n");
-    }
-    */
-    printf("\n");
-    for (int i = 0; i < size; i++) {
-        for (int j = 0; j < size; j++) {
-            printf("%d\t", resultado[i][j]);
-        }
-        printf("\n");
-    }
-    
-    printf("\n");
-    
-    
     // Liberar la memoria compartida
     shmdt(resultado);
+    shmdt(time);
     shmctl(shm_id, IPC_RMID, NULL);
+    shmctl(shm_idt,IPC_RMID, NULL);
 
     // Liberar memoria de las matrices
     for (int i = 0; i < size; i++) {
