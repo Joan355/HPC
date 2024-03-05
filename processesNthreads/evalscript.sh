@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define el rango de números
-rangos=(10 100 1000 2000 4000 6000 8000)
+rangos=(10 100 500 1000 1500 2000 2500 3000 3500 4000 4500 6000 7000 7500 8000)
 
 # Archivo CSV para almacenar los tiempos
 archivo_csv="tiempos.csv"
