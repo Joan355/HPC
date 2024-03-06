@@ -7,9 +7,8 @@
 #include <sys/shm.h>
 #include <time.h>
 #include <math.h>
-//#define P  sysconf(_SC_NPROCESSORS_ONLN) / 2
-#define P 6
 
+int P;
 
 // Estructura para pasar los datos necesarios a los hijos
 typedef struct {
@@ -59,12 +58,13 @@ double getMax(double *array){
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
-    if (argc != 2) {
+    if (argc < 2) {
         printf("Uso: %s <tamaño de matriz>\n", argv[0]);
         return 1;
     }
 
     int size = atoi(argv[1]);
+    int P = atoi(argv[2]);
     if (size <= 1) {
         printf("Tamaño de matriz inválido.\n");
         return 1;
