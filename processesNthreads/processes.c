@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
     clock_t fin = clock(); // Tiempo de fin
     double tiempo_total = (double)(fin - inicio) / CLOCKS_PER_SEC; // Tiempo total en segundos
 
-    printf("Tiempo de ejecución: %.6f segundos\n", tiempo_total);
+    printf("%.6f\n", tiempo_total);
 
     if (argc == 3 && strcmp(argv[2], "-p") == 0) {
         printf("\nMatriz 1:\n");
